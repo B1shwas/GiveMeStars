@@ -1,0 +1,77 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @unique @default(uuid())
+  username     String    @unique
+  password     String
+  fullname     String
+  role         ROLE      @default(STUDENT)
+  email        String?   @unique
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  Students     Student[] @relation("students")
+  Teachers     Teacher[] @relation("teachers")
+  refreshToken String?
+}
+
+model School {
+  id         String    @id @unique @default(uuid())
+  name       String
+  address    String
+  created_at DateTime  @default(now())
+  students   Student[]
+  teachers   Teacher[]
+}
+
+model Student {
+  id         String   @id @unique @default(uuid())
+  user_id    String   @unique
+  school_id  String
+  grade      String
+  created_at DateTime @default(now())
+  user       User     @relation("students", fields: [user_id], references: [id])
+  school     School   @relation(fields: [school_id], references: [id])
+}
+
+model Teacher {
+  id        String   @id @unique @default(uuid())
+  user_id   String   @unique
+  school_id String?
+  subject   String
+  bio       String?
+  ratings   Rating[]
+  reviews   Review[]
+  user      User?    @relation("teachers", fields: [user_id], references: [id])
+  School    School?  @relation(fields: [school_id], references: [id])
+}
+
+model Rating {
+  id         String   @id @unique @default(uuid())
+  teacher_id String?
+  Teacher    Teacher? @relation(fields: [teacher_id], references: [id])
+}
+
+model Review {
+  id         String   @id @unique @default(uuid())
+  teacher_id String?
+  Teacher    Teacher? @relation(fields: [teacher_id], references: [id])
+}
+
+enum ROLE {
+  STUDENT
+  TEACHER
+  ADMIN
+}
