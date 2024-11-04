@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import env from "../config/env.config.ts";
-import prisma from "../config/prisma.config.ts";
+import env from "../config/env.config";
+import prisma from "../config/prisma.config";
 
 const verifyJWT = async (
   req: Request,

@@ -10,7 +10,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "noEmit": false,
-    "allowImportingTsExtensions": true,
+    // "allowImportingTsExtensions": true,
     "baseUrl": ".",
     "paths": {
       "*": ["node_modules/*", "types/*"]

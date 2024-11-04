@@ -1,4 +1,4 @@
-import env from "./config/env.config.ts";
+import env from "./config/env.config";
 
 import express from "express";
 import cookieParser from "cookie-parser";
@@ -23,7 +23,7 @@ app.get("/", (req, res) => {
 });
 
 // Routes
-import routes from "./routes/index.ts";
+import routes from "./routes/index";
 app.use(routes);
 
 app.listen(PORT, () => {

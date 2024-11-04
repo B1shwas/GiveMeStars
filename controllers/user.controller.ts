@@ -1,9 +1,9 @@
-import prisma from "../config/prisma.config.ts";
-import { loginSchema, userSchema } from "../lib/validations.ts";
-import { asyncHandler } from "../utils/asyncHandler.ts";
+import prisma from "../config/prisma.config";
+import { loginSchema, userSchema } from "../lib/validations";
+import { asyncHandler } from "../utils/asyncHandler";
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
-import { generateAccessAndRefreshToken } from "../utils/generateAccessAndRefreshToken.ts";
+import { generateAccessAndRefreshToken } from "../utils/generateAccessAndRefreshToken";
 
 const registerUser = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {

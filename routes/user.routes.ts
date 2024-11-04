@@ -1,10 +1,10 @@
-import { verifyJWT } from "../middlewares/auth.middleware.ts";
-import router from "../config/router.config.ts";
+import { verifyJWT } from "../middlewares/auth.middleware";
+import router from "../config/router.config";
 import {
   registerUser,
   loginUser,
   logoutUser,
-} from "../controllers/user.controller.ts";
+} from "../controllers/user.controller";
 
 router.post("/register", registerUser);
 router.post("/login", loginUser);

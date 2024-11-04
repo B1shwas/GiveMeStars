@@ -1,6 +1,6 @@
 import { config } from "dotenv";
 
-import { envSchema } from "../lib/validations.ts";
+import { envSchema } from "../lib/validations";
 
 config();
 

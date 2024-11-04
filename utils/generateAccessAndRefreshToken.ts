@@ -1,5 +1,5 @@
-import env from "../config/env.config.ts";
-import prisma from "../config/prisma.config.ts";
+import env from "../config/env.config";
+import prisma from "../config/prisma.config";
 import jwt from "jsonwebtoken";
 
 export const generateAccessAndRefreshToken = async (
