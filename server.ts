@@ -9,8 +9,9 @@ const PORT = env.PORT;
 
 app.use(
   cors({
-    origin: "http://localhost:6000", // Adjust as needed
-    credentials: true, // Allow cookies to be sent
+    origin: "http://localhost:3000",
+    methods: ["GET", "POST", "DELETE", "PUT", "OPTIONS"], // Allowed methods
+    allowedHeaders: ["Content-Type", "Authorization"], // Allowed headers
   })
 );
 
