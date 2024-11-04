@@ -101,13 +101,13 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
 
   res.cookie("refreshtoken", refreshToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: true,
     sameSite: "lax",
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
   res.cookie("accesstoken", accessToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: true,
     sameSite: "none",
   });
 
@@ -130,12 +130,12 @@ const logoutUser = asyncHandler(
       .status(200)
       .clearCookie("refreshtoken", {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: true,
         sameSite: "none",
       })
       .clearCookie("accesstoken", {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: true,
       })
       .json({
         message: "User logged out successfully",
