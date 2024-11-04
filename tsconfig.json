@@ -3,7 +3,7 @@
     "target": "ESNext",
     "module": "CommonJS",
     "lib": ["ES2020", "DOM"],
-    "outDir": "./public",
+    "outDir": "./dist",
     "rootDir": ".",
     "strict": true,
     "esModuleInterop": true,
@@ -17,5 +17,5 @@
     }
   },
   "include": ["**/*.ts"],
-  "exclude": ["node_modules", "public"]
+  "exclude": ["node_modules", "dist"]
 }
