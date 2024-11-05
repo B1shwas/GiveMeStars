@@ -24,7 +24,7 @@ model User {
   updated_at   DateTime  @updatedAt
   Students     Student[] @relation("students")
   Teachers     Teacher[] @relation("teachers")
-  refreshToken String?
+  refreshToken String[]
 }
 
 model School {

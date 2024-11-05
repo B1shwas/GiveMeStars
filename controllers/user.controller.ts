@@ -4,6 +4,8 @@ import { asyncHandler } from "../utils/asyncHandler";
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import { generateAccessAndRefreshToken } from "../utils/generateAccessAndRefreshToken";
+import jwt from "jsonwebtoken";
+import env from "../config/env.config";
 
 const registerUser = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
@@ -78,16 +80,17 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
     return;
   }
 
+  const token = req.cookies?.refreshtoken;
   const { username, password } = parsedData.data;
 
-  const isUserAvailable = await prisma.user.findUnique({ where: { username } });
-  if (!isUserAvailable) {
+  const availableUser = await prisma.user.findUnique({ where: { username } });
+  if (!availableUser) {
     res.status(404).json({ message: "User not found", success: false });
     return;
   }
   const isPasswordValid = await bcrypt.compare(
     password,
-    isUserAvailable.password
+    availableUser.password
   );
 
   if (!isPasswordValid) {
@@ -95,20 +98,47 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
     return;
   }
 
-  const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
-    isUserAvailable.id
-  );
+  const info = { id: availableUser.id, username: availableUser.username };
+
+  const { accessToken, refreshToken } = generateAccessAndRefreshToken(info);
+
+  let newRefreshTokenArray = !token
+    ? availableUser.refreshToken
+    : availableUser.refreshToken.filter((rt) => rt !== token);
+
+  console.log("token", token);
+
+  if (token) {
+    const foundToken = await prisma.user.findFirst({
+      where: {
+        refreshToken: {
+          has: token,
+        },
+      },
+    });
+
+    console.log("user", foundToken);
+
+    if (!foundToken) {
+      newRefreshTokenArray = [];
+    }
+    res.clearCookie("refreshtoken", {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+    });
+  }
+
+  await prisma.user.update({
+    where: { id: availableUser.id },
+    data: { refreshToken: [...newRefreshTokenArray, refreshToken] },
+  });
 
   res.cookie("refreshtoken", refreshToken, {
     httpOnly: true,
     secure: true,
     sameSite: "lax",
     maxAge: 7 * 24 * 60 * 60 * 1000,
-  });
-  res.cookie("accesstoken", accessToken, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "none",
   });
 
   res.status(200).json({
@@ -118,24 +148,151 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
+const refreshTheToken = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const incomingRefreshToken = req.cookies.refreshtoken || req.body;
+
+    if (!incomingRefreshToken) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    res.clearCookie("refreshtoken", {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+    });
+
+    const user = await prisma.user.findFirst({
+      where: {
+        refreshToken: {
+          has: incomingRefreshToken,
+        },
+      },
+    });
+
+    if (!user) {
+      jwt.verify(
+        incomingRefreshToken,
+        env.REFRESH_TOKEN_SECRET,
+        async (err: any, decoded: any | undefined) => {
+          if (err) return res.sendStatus(403);
+          const hackedUser = await prisma.user.findUnique({
+            where: { username: decoded.username },
+          });
+          if (hackedUser) {
+            hackedUser.refreshToken = [];
+            await prisma.user.update({
+              where: { id: hackedUser.id },
+              data: {
+                refreshToken: [],
+              },
+            });
+          }
+        }
+      );
+      res.sendStatus(403);
+      return;
+    }
+
+    const newRefreshTokenArray = user.refreshToken.filter(
+      (rt) => rt !== incomingRefreshToken
+    );
+
+    jwt.verify(
+      incomingRefreshToken,
+      env.REFRESH_TOKEN_SECRET,
+      async (err: any, decoded: any | undefined) => {
+        if (err) {
+          await prisma.user.update({
+            where: {
+              id: user.id,
+            },
+            data: {
+              refreshToken: [...newRefreshTokenArray],
+            },
+          });
+          return;
+        }
+
+        if (err || user.username !== decoded.username) {
+          return res.sendStatus(403);
+        }
+
+        const info = { id: user.id, username: user.username };
+
+        const { accessToken, refreshToken } =
+          generateAccessAndRefreshToken(info);
+
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { refreshToken: [...newRefreshTokenArray, refreshToken] },
+        });
+
+        res.cookie("refreshtoken", refreshToken, {
+          httpOnly: true,
+          secure: true,
+          sameSite: "lax",
+        });
+
+        res
+          .status(200)
+          .json({ message: "Refreshed the token", accessToken: accessToken });
+      }
+    );
+  }
+);
+
 const logoutUser = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
-    await prisma.user.update({
-      //@ts-ignore
-      where: { id: req.user.id },
-      data: { refreshToken: null },
+    const token = req.cookies?.refreshtoken || req.body.refreshToken;
+    console.log(token);
+
+    if (!token) {
+      res.status(204).send();
+      return;
+    }
+
+    const user = await prisma.user.findFirst({
+      where: {
+        refreshToken: {
+          has: token,
+        },
+      },
     });
+
+    console.log(user);
+
+    if (!user) {
+      res.clearCookie("refreshtoken", {
+        httpOnly: true,
+        secure: true,
+        sameSite: "lax",
+      });
+      res.status(204).send();
+      return;
+    }
+
+    const updatedRefreshTokenArray = user.refreshToken.filter(
+      (rt) => rt !== token
+    );
+
+    console.log("updated", updatedRefreshTokenArray);
+
+    const updated = await prisma.user.update({
+      //@ts-ignore
+      where: { id: user.id },
+      data: { refreshToken: updatedRefreshTokenArray },
+    });
+
+    console.log(updated);
 
     res
       .status(200)
       .clearCookie("refreshtoken", {
         httpOnly: true,
         secure: true,
-        sameSite: "none",
-      })
-      .clearCookie("accesstoken", {
-        httpOnly: true,
-        secure: true,
+        sameSite: "lax",
       })
       .json({
         message: "User logged out successfully",
@@ -144,4 +301,4 @@ const logoutUser = asyncHandler(
   }
 );
 
-export { registerUser, loginUser, logoutUser };
+export { registerUser, loginUser, logoutUser, refreshTheToken };
