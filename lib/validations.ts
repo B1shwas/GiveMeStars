@@ -7,6 +7,7 @@ export const userSchema = z.object({
   password: z
     .string()
     .min(6, { message: "Password must be at least 6 characters" }),
+  role: z.enum(["STUDENT", "TEACHER"]).default("STUDENT").optional(),
 });
 
 export const envSchema = z.object({
@@ -22,4 +23,9 @@ export const envSchema = z.object({
 export const loginSchema = userSchema.pick({
   username: true,
   password: true,
+});
+
+export const reviewAndRatingSchema = z.object({
+  rating: z.number().min(1).max(5),
+  review: z.string().min(1).max(500),
 });

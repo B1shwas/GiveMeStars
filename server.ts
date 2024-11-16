@@ -20,10 +20,6 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.json());
 
-app.get("/", (req, res) => {
-  res.send("Hello World");
-});
-
 // Routes
 import routes from "./routes/index";
 app.use(routes);

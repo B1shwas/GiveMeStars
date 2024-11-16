@@ -1,60 +1,61 @@
 import prisma from "../config/prisma.config";
 import { loginSchema, userSchema } from "../lib/validations";
 import { asyncHandler } from "../utils/asyncHandler";
-import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import { generateAccessAndRefreshToken } from "../utils/generateAccessAndRefreshToken";
 import jwt from "jsonwebtoken";
 import env from "../config/env.config";
+import { createRoleEntry } from "../utils/roleUtil";
 
-const registerUser = asyncHandler(
-  async (req: Request, res: Response): Promise<void> => {
-    const parsedData = userSchema.safeParse(req.body);
+const registerUser = asyncHandler(async (req, res): Promise<void> => {
+  const parsedData = userSchema.safeParse(req.body);
 
-    if (!parsedData.success) {
-      res.status(400).json({
-        success: false,
-        message: parsedData.error.flatten().fieldErrors,
-      });
-      return;
-    }
-
-    const { username, email, password, fullname } = parsedData.data;
-
-    const duplicate = await prisma.user.findUnique({
-      where: {
-        username,
-      },
+  if (!parsedData.success) {
+    res.status(400).json({
+      success: false,
+      message: parsedData.error.flatten().fieldErrors,
     });
+    return;
+  }
 
-    if (duplicate) {
-      res.status(409).json({ message: "User already exists", success: false });
-      return;
-    }
+  const { username, email, password, fullname, role } = parsedData.data;
 
-    let hashedPassword: string;
-    try {
-      hashedPassword = await bcrypt.hash(password, 10);
-    } catch (error) {
-      res.status(500).json({ message: "Something went wrong", success: false });
-      return;
-    }
+  const duplicate = await prisma.user.findUnique({
+    where: {
+      username,
+    },
+  });
 
+  if (duplicate) {
+    res.status(409).json({ message: "User already exists", success: false });
+    return;
+  }
+
+  let hashedPassword: string;
+  try {
+    hashedPassword = await bcrypt.hash(password, 10);
+  } catch (error) {
+    res.status(500).json({ message: "Something went wrong", success: false });
+    return;
+  }
+
+  await prisma.$transaction(async (prisma) => {
     const newUser = await prisma.user.create({
       data: {
         username: username.toLowerCase(),
         email,
         password: hashedPassword,
         fullname,
+        role,
       },
     });
+
+    await createRoleEntry(prisma, role || "STUDENT", newUser.id);
 
     const createdUser = await prisma.user.findUnique({
       where: { id: newUser.id },
       select: { id: true, username: true, email: true, fullname: true },
     });
-
-    console.log(createdUser);
 
     if (!createdUser) {
       res.status(500).json({ message: "Something went wrong", success: false });
@@ -66,10 +67,10 @@ const registerUser = asyncHandler(
       user: createdUser,
       success: true,
     });
-  }
-);
+  });
+});
 
-const loginUser = asyncHandler(async (req: Request, res: Response) => {
+const loginUser = asyncHandler(async (req, res) => {
   const parsedData = loginSchema.safeParse(req.body);
 
   if (!parsedData.success) {
@@ -148,157 +149,152 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
-const refreshTheToken = asyncHandler(
-  async (req: Request, res: Response): Promise<void> => {
-    const incomingRefreshToken = req.cookies.refreshtoken || req.body;
+const refreshTheToken = asyncHandler(async (req, res): Promise<void> => {
+  const incomingRefreshToken = req.cookies.refreshtoken || req.body;
 
-    if (!incomingRefreshToken) {
-      res.status(401).json({ message: "Unauthorized" });
-      return;
+  if (!incomingRefreshToken) {
+    res.status(401).json({ message: "Unauthorized" });
+    return;
+  }
+
+  res.clearCookie("refreshtoken", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+  });
+
+  const user = await prisma.user.findFirst({
+    where: {
+      refreshToken: {
+        has: incomingRefreshToken,
+      },
+    },
+  });
+
+  if (!user) {
+    jwt.verify(
+      incomingRefreshToken,
+      env.REFRESH_TOKEN_SECRET,
+      async (err: any, decoded: any | undefined) => {
+        if (err) return res.sendStatus(403);
+        const hackedUser = await prisma.user.findUnique({
+          where: { username: decoded.username },
+        });
+        if (hackedUser) {
+          hackedUser.refreshToken = [];
+          await prisma.user.update({
+            where: { id: hackedUser.id },
+            data: {
+              refreshToken: [],
+            },
+          });
+        }
+      }
+    );
+    res.sendStatus(403);
+    return;
+  }
+
+  const newRefreshTokenArray = user.refreshToken.filter(
+    (rt) => rt !== incomingRefreshToken
+  );
+
+  jwt.verify(
+    incomingRefreshToken,
+    env.REFRESH_TOKEN_SECRET,
+    async (err: any, decoded: any | undefined) => {
+      if (err) {
+        await prisma.user.update({
+          where: {
+            id: user.id,
+          },
+          data: {
+            refreshToken: [...newRefreshTokenArray],
+          },
+        });
+        return;
+      }
+
+      if (err || user.username !== decoded.username) {
+        return res.sendStatus(403);
+      }
+
+      const info = { id: user.id, username: user.username };
+
+      const { accessToken, refreshToken } = generateAccessAndRefreshToken(info);
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { refreshToken: [...newRefreshTokenArray, refreshToken] },
+      });
+
+      res.cookie("refreshtoken", refreshToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "lax",
+      });
+
+      res
+        .status(200)
+        .json({ message: "Refreshed the token", accessToken: accessToken });
     }
+  );
+});
 
+const logoutUser = asyncHandler(async (req, res): Promise<void> => {
+  const token = req.cookies?.refreshtoken || req.body.refreshToken;
+  console.log(token);
+
+  if (!token) {
+    res.status(204).send();
+    return;
+  }
+
+  const user = await prisma.user.findFirst({
+    where: {
+      refreshToken: {
+        has: token,
+      },
+    },
+  });
+
+  console.log(user);
+
+  if (!user) {
     res.clearCookie("refreshtoken", {
       httpOnly: true,
       secure: true,
       sameSite: "lax",
     });
-
-    const user = await prisma.user.findFirst({
-      where: {
-        refreshToken: {
-          has: incomingRefreshToken,
-        },
-      },
-    });
-
-    if (!user) {
-      jwt.verify(
-        incomingRefreshToken,
-        env.REFRESH_TOKEN_SECRET,
-        async (err: any, decoded: any | undefined) => {
-          if (err) return res.sendStatus(403);
-          const hackedUser = await prisma.user.findUnique({
-            where: { username: decoded.username },
-          });
-          if (hackedUser) {
-            hackedUser.refreshToken = [];
-            await prisma.user.update({
-              where: { id: hackedUser.id },
-              data: {
-                refreshToken: [],
-              },
-            });
-          }
-        }
-      );
-      res.sendStatus(403);
-      return;
-    }
-
-    const newRefreshTokenArray = user.refreshToken.filter(
-      (rt) => rt !== incomingRefreshToken
-    );
-
-    jwt.verify(
-      incomingRefreshToken,
-      env.REFRESH_TOKEN_SECRET,
-      async (err: any, decoded: any | undefined) => {
-        if (err) {
-          await prisma.user.update({
-            where: {
-              id: user.id,
-            },
-            data: {
-              refreshToken: [...newRefreshTokenArray],
-            },
-          });
-          return;
-        }
-
-        if (err || user.username !== decoded.username) {
-          return res.sendStatus(403);
-        }
-
-        const info = { id: user.id, username: user.username };
-
-        const { accessToken, refreshToken } =
-          generateAccessAndRefreshToken(info);
-
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { refreshToken: [...newRefreshTokenArray, refreshToken] },
-        });
-
-        res.cookie("refreshtoken", refreshToken, {
-          httpOnly: true,
-          secure: true,
-          sameSite: "lax",
-        });
-
-        res
-          .status(200)
-          .json({ message: "Refreshed the token", accessToken: accessToken });
-      }
-    );
+    res.status(204).send();
+    return;
   }
-);
 
-const logoutUser = asyncHandler(
-  async (req: Request, res: Response): Promise<void> => {
-    const token = req.cookies?.refreshtoken || req.body.refreshToken;
-    console.log(token);
+  const updatedRefreshTokenArray = user.refreshToken.filter(
+    (rt) => rt !== token
+  );
 
-    if (!token) {
-      res.status(204).send();
-      return;
-    }
+  console.log("updated", updatedRefreshTokenArray);
 
-    const user = await prisma.user.findFirst({
-      where: {
-        refreshToken: {
-          has: token,
-        },
-      },
+  const updated = await prisma.user.update({
+    //@ts-ignore
+    where: { id: user.id },
+    data: { refreshToken: updatedRefreshTokenArray },
+  });
+
+  console.log(updated);
+
+  res
+    .status(200)
+    .clearCookie("refreshtoken", {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+    })
+    .json({
+      message: "User logged out successfully",
+      success: true,
     });
-
-    console.log(user);
-
-    if (!user) {
-      res.clearCookie("refreshtoken", {
-        httpOnly: true,
-        secure: true,
-        sameSite: "lax",
-      });
-      res.status(204).send();
-      return;
-    }
-
-    const updatedRefreshTokenArray = user.refreshToken.filter(
-      (rt) => rt !== token
-    );
-
-    console.log("updated", updatedRefreshTokenArray);
-
-    const updated = await prisma.user.update({
-      //@ts-ignore
-      where: { id: user.id },
-      data: { refreshToken: updatedRefreshTokenArray },
-    });
-
-    console.log(updated);
-
-    res
-      .status(200)
-      .clearCookie("refreshtoken", {
-        httpOnly: true,
-        secure: true,
-        sameSite: "lax",
-      })
-      .json({
-        message: "User logged out successfully",
-        success: true,
-      });
-  }
-);
+});
 
 export { registerUser, loginUser, logoutUser, refreshTheToken };
