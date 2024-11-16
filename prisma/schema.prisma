@@ -4,6 +4,12 @@
 // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,17 +20,18 @@ datasource db {
 }
 
 model User {
-  id           String    @id @unique @default(uuid())
-  username     String    @unique
+  id           String     @id @unique @default(uuid())
+  username     String     @unique
   password     String
   fullname     String
-  role         ROLE      @default(STUDENT)
-  email        String?   @unique
-  created_at   DateTime  @default(now())
-  updated_at   DateTime  @updatedAt
-  Students     Student[] @relation("students")
-  Teachers     Teacher[] @relation("teachers")
+  role         ROLE       @default(STUDENT)
+  email        String?    @unique
+  created_at   DateTime   @default(now())
+  updated_at   DateTime   @updatedAt
+  students     Student[]  @relation("students")
+  teachers     Teacher[]  @relation("teachers")
   refreshToken String[]
+  feedbacks    Feedback[] // Combined feedback (ratings and reviews)
 }
 
 model School {
@@ -37,49 +44,40 @@ model School {
 }
 
 model Student {
-  id         String   @id @unique @default(uuid())
-  userId     String   @unique
+  id         String     @id @unique @default(uuid())
+  userId     String     @unique
   schoolId   String?
   grade      String?
-  created_at DateTime @default(now())
-  user       User     @relation("students", fields: [userId], references: [id])
-  school     School?  @relation(fields: [schoolId], references: [id])
-  ratings    Rating[]
-  reviews    Review[]
+  created_at DateTime   @default(now())
+  user       User       @relation("students", fields: [userId], references: [id])
+  school     School?    @relation(fields: [schoolId], references: [id])
+  feedbacks  Feedback[] // Combined feedback
 }
 
 model Teacher {
-  id       String   @id @unique @default(uuid())
-  userId   String   @unique
-  schoolId String?
-  subject  String?
-  bio      String?
-  ratings  Rating[]
-  reviews  Review[]
-  user     User?    @relation("teachers", fields: [userId], references: [id])
-  School   School?  @relation(fields: [schoolId], references: [id])
+  id        String     @id @unique @default(uuid())
+  userId    String     @unique
+  schoolId  String?
+  subject   String?
+  bio       String?
+  feedbacks Feedback[] // Combined feedback
+  user      User?      @relation("teachers", fields: [userId], references: [id])
+  school    School?    @relation(fields: [schoolId], references: [id])
 }
 
-model Rating {
-  id        String   @id @unique @default(uuid())
-  rating    Float?
+model Feedback {
+  id        String  @id @unique @default(uuid())
+  rating    Float? // Optional rating
+  review    String? // Optional review
   teacherId String?
-  Teacher   Teacher? @relation(fields: [teacherId], references: [id])
-  Student   Student? @relation(fields: [studentId], references: [id])
   studentId String?
+  userId    String?
 
-  @@unique([teacherId, studentId])
-}
+  Teacher Teacher? @relation(fields: [teacherId], references: [id])
+  Student Student? @relation(fields: [studentId], references: [id])
+  User    User?    @relation(fields: [userId], references: [id])
 
-model Review {
-  id        String   @id @unique @default(uuid())
-  teacherId String?
-  Teacher   Teacher? @relation(fields: [teacherId], references: [id])
-  Student   Student? @relation(fields: [studentId], references: [id])
-  studentId String?
-  review    String?
-
-  @@unique([teacherId, studentId])
+  @@unique([teacherId, studentId, userId]) // Unique constraint to prevent duplicate feedback from the same user
 }
 
 enum ROLE {
