@@ -121,7 +121,6 @@ const updateReviewAndRating = asyncHandler(
         success: false,
         message: "You are not authorized to update this feedback",
       });
-      
     }
 
     const parsedData = reviewAndRatingSchema.safeParse(req.body);
@@ -157,4 +156,55 @@ const updateReviewAndRating = asyncHandler(
   }
 );
 
-export { giveTeacherReviewAndRating, updateReviewAndRating };
+const deleteReviewAndRating = asyncHandler(
+  async (req: CustomRequest, res: Response) => {
+    const { feedbackId } = req.query;
+    const userId = req.user!.id;
+
+    if (!feedbackId) {
+      return res.status(400).json({
+        message: "Feedback ID is required",
+      });
+    }
+
+    const feedbackToBeDeleted = await prisma.feedback.findUnique({
+      where: { id: feedbackId as string },
+    });
+
+    if (!feedbackToBeDeleted) {
+      return res.status(404).json({
+        success: false,
+        message: "Feedback not found",
+      });
+    }
+
+    if (userId !== feedbackToBeDeleted.userId) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to delete this feedback",
+      });
+    }
+
+    try {
+      await prisma.feedback.delete({
+        where: { id: feedbackId as string },
+      });
+    } catch (error) {
+      return res.status(500).json({
+        message: error,
+        success: false,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Feedback deleted successfully.",
+    });
+  }
+);
+
+export {
+  giveTeacherReviewAndRating,
+  updateReviewAndRating,
+  deleteReviewAndRating,
+};
