@@ -18,7 +18,7 @@ const registerUser = asyncHandler(async (req, res): Promise<void> => {
     return;
   }
 
-  const { username, email, password, fullname, role } = parsedData.data;
+  const { username, email, password, fullname, roleCode } = parsedData.data;
 
   const duplicate = await prisma.user.findUnique({
     where: {
@@ -40,22 +40,43 @@ const registerUser = asyncHandler(async (req, res): Promise<void> => {
   }
 
   await prisma.$transaction(async (prisma) => {
+    const role = await prisma.role.findUnique({
+      where: { roleCode },
+    });
+
+    if (!role) {
+      res.status(400).json({ message: "Role does not exist", success: false });
+      return;
+    }
+
     const newUser = await prisma.user.create({
       data: {
         username: username.toLowerCase(),
         email,
         password: hashedPassword,
         fullname,
-        role,
+        roles: {
+          connect: {
+            roleCode,
+          },
+        },
       },
     });
 
-    await createRoleEntry(prisma, role || "STUDENT", newUser.id);
+    await createRoleEntry(prisma, roleCode, newUser.id);
 
     const createdUser = await prisma.user.findUnique({
       where: { id: newUser.id },
-      select: { id: true, username: true, email: true, fullname: true },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        fullname: true,
+        roles: true,
+      },
     });
+
+    console.log(createdUser);
 
     if (!createdUser) {
       res.status(500).json({ message: "Something went wrong", success: false });
@@ -107,8 +128,6 @@ const loginUser = asyncHandler(async (req, res) => {
     ? availableUser.refreshToken
     : availableUser.refreshToken.filter((rt) => rt !== token);
 
-  console.log("token", token);
-
   if (token) {
     const foundToken = await prisma.user.findFirst({
       where: {
@@ -117,6 +136,29 @@ const loginUser = asyncHandler(async (req, res) => {
         },
       },
     });
+
+    if (foundToken?.username !== availableUser?.username) {
+      await prisma.user.update({
+        where: { id: foundToken?.id },
+        data: { refreshToken: [] },
+      });
+
+      await prisma.user.update({
+        where: { id: availableUser.id },
+        data: { refreshToken: [] },
+      });
+
+      res.clearCookie("refreshtoken", {
+        httpOnly: true,
+        secure: true,
+        sameSite: "lax",
+      });
+
+      res.status(403).json({
+        message: "Forbidden: Found another user already logged into the system",
+        success: false,
+      });
+    }
 
     console.log("user", foundToken);
 

@@ -1,26 +1,17 @@
-type UserRole = "STUDENT" | "TEACHER";
-
 export const createRoleEntry = async (
   prisma: any,
-  role: UserRole,
+  roleCode: string,
   userId: string
 ) => {
-  const userExists = await prisma.user.findUnique({
-    where: { id: userId },
-  });
-
-  if (!userExists) {
-    throw new Error(`User with ID ${userId} does not exist.`);
-  }
-  const roleCreationMap = {
-    STUDENT: async () => {
+  const roleCreationMap: Record<string, () => Promise<void>> = {
+    "0110": async () => {
       await prisma.student.create({
         data: {
           userId,
         },
       });
     },
-    TEACHER: async () => {
+    "1799": async () => {
       await prisma.teacher.create({
         data: {
           userId,
@@ -29,10 +20,10 @@ export const createRoleEntry = async (
     },
   };
 
-  const createRole = roleCreationMap[role];
+  const createRole = roleCreationMap[roleCode];
   if (createRole) {
     await createRole();
   } else {
-    throw new Error("Invalid role");
+    return;
   }
 };

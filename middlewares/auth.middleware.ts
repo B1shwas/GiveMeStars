@@ -28,7 +28,7 @@ const verifyJWT =
           id: true,
           email: true,
           username: true,
-          role: true,
+          roles: true,
         },
       });
 
@@ -37,10 +37,23 @@ const verifyJWT =
         return;
       }
 
-      if (role && !role.includes(user.role.toLowerCase())) {
+      let userRoles;
+      let isForbidden = false;
+
+      userRoles = user.roles.flatMap((role) => role.name);
+
+      for (const userRole of userRoles) {
+        if (role && !role.includes(userRole.toLowerCase())) {
+          isForbidden = true;
+          break;
+        }
+      }
+
+      if (isForbidden) {
         res.status(403).json({ message: "Forbidden" });
         return;
       }
+
       //@ts-ignore
       req.user = user;
       next();

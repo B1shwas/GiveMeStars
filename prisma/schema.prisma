@@ -10,6 +10,18 @@
 // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -24,7 +36,6 @@ model User {
   username     String     @unique
   password     String
   fullname     String
-  role         ROLE       @default(STUDENT)
   email        String?    @unique
   created_at   DateTime   @default(now())
   updated_at   DateTime   @updatedAt
@@ -32,6 +43,10 @@ model User {
   teachers     Teacher[]  @relation("teachers")
   refreshToken String[]
   feedbacks    Feedback[] // Combined feedback (ratings and reviews)
+  roles        Role[]     @relation("User  Roles")
+
+  @@index([username]) // Index for fast username lookups
+  @@index([email])    // Index for fast email lookups
 }
 
 model School {
@@ -40,7 +55,11 @@ model School {
   address    String
   created_at DateTime  @default(now())
   students   Student[]
-  teachers   Teacher[]
+  teachers   Teacher[] @relation("schoolTeachers")
+  admins     Teacher[] @relation("schoolAdmins")
+  moderators Teacher[] @relation("schoolModerators")
+
+  @@index([name]) // Index for fast school name lookups
 }
 
 model Student {
@@ -52,6 +71,18 @@ model Student {
   user       User       @relation("students", fields: [userId], references: [id])
   school     School?    @relation(fields: [schoolId], references: [id])
   feedbacks  Feedback[] // Combined feedback
+
+  @@index([userId])   // Index for fast userId lookups
+  @@index([schoolId]) // Index for fast schoolId lookups
+}
+
+model Role {
+  id       String @id @unique @default(uuid())
+  name     String @unique
+  roleCode String @unique
+  users    User[] @relation("User  Roles")
+
+  @@index([name]) // Index for fast role name lookups
 }
 
 model Teacher {
@@ -62,7 +93,14 @@ model Teacher {
   bio       String?
   feedbacks Feedback[] // Combined feedback
   user      User?      @relation("teachers", fields: [userId], references: [id])
-  school    School?    @relation(fields: [schoolId], references: [id])
+
+  // Unique map attributes for each relation
+  school          School? @relation("schoolTeachers", fields: [schoolId], references: [id], map: "teacher_school_relation")
+  adminSchool     School? @relation("schoolAdmins", fields: [schoolId], references: [id], map: "teacher_admin_school_relation")
+  moderatorSchool School? @relation("schoolModerators", fields: [schoolId], references: [id], map: "teacher_moderator_school_relation")
+
+  @@index([userId])   // Index for fast userId lookups
+  @@index([schoolId]) // Index for fast schoolId lookups
 }
 
 model Feedback {
@@ -75,13 +113,10 @@ model Feedback {
 
   Teacher Teacher? @relation(fields: [teacherId], references: [id])
   Student Student? @relation(fields: [studentId], references: [id])
-  User    User?    @relation(fields: [userId], references: [id])
+  User    User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([teacherId, studentId, userId]) // Unique constraint to prevent duplicate feedback from the same user
-}
-
-enum ROLE {
-  STUDENT
-  TEACHER
-  ADMIN
+  @@index([teacherId]) // Index for fast teacherId lookups
+  @@index([studentId]) // Index for fast studentId lookups
+  @@index([userId])    // Index for fast userId lookups
 }
