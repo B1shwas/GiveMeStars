@@ -3,33 +3,45 @@ import jwt from "jsonwebtoken";
 import env from "../config/env.config";
 import prisma from "../config/prisma.config";
 
-const verifyJWT =
-  (role?: string[]) =>
-  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      let token = req.cookies?.refreshtoken || req.headers.authorization;
+interface Role {
+  id: string;
+  name: string;
+  roleCode: string;
+}
 
-      if (token && token.startsWith("Bearer ")) {
-        token = token.split(" ")[1];
-      }
-      if (!token) {
-        res.status(401).json({ message: "Unauthorized" });
-        return;
-      }
+interface User {
+  id: string;
+  username: string;
+  email: string | null; // Allowing email to be null
+  roles: Role[]; // Array of Role objects
+}
+
+interface CustomRequest extends Request {
+  user?: User; // Now user is of type User
+}
+
+const verifyJWT =
+  (allowedRoles?: string[]) =>
+  async (
+    req: CustomRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    const token =
+      req.cookies?.refreshtoken || req.headers.authorization?.split(" ")[1];
+
+    if (!token) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    try {
       const decoded = jwt.verify(token, env.REFRESH_TOKEN_SECRET) as {
         id: string;
       };
-
       const user = await prisma.user.findUnique({
-        where: {
-          id: decoded.id,
-        },
-        select: {
-          id: true,
-          email: true,
-          username: true,
-          roles: true,
-        },
+        where: { id: decoded.id },
+        select: { id: true, email: true, username: true, roles: true },
       });
 
       if (!user) {
@@ -37,29 +49,22 @@ const verifyJWT =
         return;
       }
 
-      let userRoles;
-      let isForbidden = false;
+      const userRoles = user.roles.map((role) => role.name.toLowerCase());
+      const hasPermission = allowedRoles
+        ? allowedRoles.every((role) => userRoles.includes(role.toLowerCase()))
+        : true;
 
-      userRoles = user.roles.flatMap((role) => role.name);
-
-      for (const userRole of userRoles) {
-        if (role && !role.includes(userRole.toLowerCase())) {
-          isForbidden = true;
-          break;
-        }
-      }
-
-      if (isForbidden) {
+      if (!hasPermission) {
         res.status(403).json({ message: "Forbidden" });
         return;
       }
 
-      //@ts-ignore
-      req.user = user;
+      // Assign user to req.user
+      req.user = user; // This is valid as user is of type User
       next();
     } catch (error) {
       console.error("JWT verification error:", error);
-      res.status(403).json({ message: "Forbidden" });
+      res.status(401).json({ message: "Unauthorized" });
       return;
     }
   };
