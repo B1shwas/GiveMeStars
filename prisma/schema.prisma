@@ -44,9 +44,10 @@ model User {
   refreshToken String[]
   feedbacks    Feedback[] // Combined feedback (ratings and reviews)
   roles        Role[]     @relation("User  Roles")
+  School       School[]
 
   @@index([username]) // Index for fast username lookups
-  @@index([email])    // Index for fast email lookups
+  @@index([email]) // Index for fast email lookups
 }
 
 model School {
@@ -54,6 +55,8 @@ model School {
   name       String
   address    String
   created_at DateTime  @default(now())
+  createdBy  String
+  creator    User      @relation(fields: [createdBy], references: [id])
   students   Student[]
   teachers   Teacher[] @relation("schoolTeachers")
   admins     Teacher[] @relation("schoolAdmins")
@@ -69,10 +72,10 @@ model Student {
   grade      String?
   created_at DateTime   @default(now())
   user       User       @relation("students", fields: [userId], references: [id])
-  school     School?    @relation(fields: [schoolId], references: [id])
+  school     School?    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   feedbacks  Feedback[] // Combined feedback
 
-  @@index([userId])   // Index for fast userId lookups
+  @@index([userId]) // Index for fast userId lookups
   @@index([schoolId]) // Index for fast schoolId lookups
 }
 
@@ -92,14 +95,14 @@ model Teacher {
   subject   String?
   bio       String?
   feedbacks Feedback[] // Combined feedback
-  user      User?      @relation("teachers", fields: [userId], references: [id])
+  user      User?      @relation("teachers", fields: [userId], references: [id], onDelete: Cascade)
 
   // Unique map attributes for each relation
   school          School? @relation("schoolTeachers", fields: [schoolId], references: [id], map: "teacher_school_relation")
   adminSchool     School? @relation("schoolAdmins", fields: [schoolId], references: [id], map: "teacher_admin_school_relation")
   moderatorSchool School? @relation("schoolModerators", fields: [schoolId], references: [id], map: "teacher_moderator_school_relation")
 
-  @@index([userId])   // Index for fast userId lookups
+  @@index([userId]) // Index for fast userId lookups
   @@index([schoolId]) // Index for fast schoolId lookups
 }
 
@@ -107,6 +110,7 @@ model Feedback {
   id        String  @id @unique @default(uuid())
   rating    Float? // Optional rating
   review    String? // Optional review
+  reply     String?
   teacherId String?
   studentId String?
   userId    String?
@@ -118,5 +122,5 @@ model Feedback {
   @@unique([teacherId, studentId, userId]) // Unique constraint to prevent duplicate feedback from the same user
   @@index([teacherId]) // Index for fast teacherId lookups
   @@index([studentId]) // Index for fast studentId lookups
-  @@index([userId])    // Index for fast userId lookups
+  @@index([userId]) // Index for fast userId lookups
 }
