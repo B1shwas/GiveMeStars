@@ -1,6 +1,6 @@
 import env from "./config/env.config";
 
-import express from "express";
+import express, { Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 
@@ -22,7 +22,12 @@ app.use(express.json());
 
 // Routes
 import routes from "./routes/index";
+import { globalErrorHandler } from "./middlewares/globalErrorHandler.middleware";
 app.use(routes);
+
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  globalErrorHandler(err, req, res, next);
+});
 
 app.listen(PORT, () => {
   console.log(`Server is listening at PORT ${PORT}`);

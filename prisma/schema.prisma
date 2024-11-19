@@ -51,16 +51,24 @@ model User {
 }
 
 model School {
-  id         String    @id @unique @default(uuid())
-  name       String
-  address    String
-  created_at DateTime  @default(now())
-  createdBy  String
-  creator    User      @relation(fields: [createdBy], references: [id])
-  students   Student[]
-  teachers   Teacher[] @relation("schoolTeachers")
-  admins     Teacher[] @relation("schoolAdmins")
-  moderators Teacher[] @relation("schoolModerators")
+  id          String    @id @unique @default(uuid())
+  name        String
+  address     String
+  email       String    @unique
+  state       String
+  country     String
+  city        String
+  pincode     String
+  phone       String
+  passcode    String
+  description String?
+  created_at  DateTime  @default(now())
+  createdBy   String
+  creator     User      @relation(fields: [createdBy], references: [id])
+  students    Student[]
+  teachers    Teacher[] @relation("schoolTeachers")
+  admins      Teacher[] @relation("schoolAdmins")
+  moderators  Teacher[] @relation("schoolModerators")
 
   @@index([name]) // Index for fast school name lookups
 }

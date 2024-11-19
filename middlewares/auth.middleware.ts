@@ -51,7 +51,7 @@ const verifyJWT =
 
       const userRoles = user.roles.map((role) => role.name.toLowerCase());
       const hasPermission = allowedRoles
-        ? allowedRoles.every((role) => userRoles.includes(role.toLowerCase()))
+        ? allowedRoles.some((role) => userRoles.includes(role.toLowerCase()))
         : true;
 
       if (!hasPermission) {

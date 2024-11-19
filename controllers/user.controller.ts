@@ -6,6 +6,7 @@ import { generateAccessAndRefreshToken } from "../utils/generateAccessAndRefresh
 import jwt from "jsonwebtoken";
 import env from "../config/env.config";
 import { createRoleEntry } from "../utils/roleUtil";
+import { ApiError } from "../utils/ApiError";
 
 const registerUser = asyncHandler(async (req, res): Promise<void> => {
   const parsedData = userSchema.safeParse(req.body);
@@ -116,8 +117,7 @@ const loginUser = asyncHandler(async (req, res) => {
   );
 
   if (!isPasswordValid) {
-    res.status(401).json({ message: "Invalid credentials", success: false });
-    return;
+    throw new ApiError(401, "Invalid Credentials");
   }
 
   const info = { id: availableUser.id, username: availableUser.username };
