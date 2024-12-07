@@ -8,7 +8,7 @@ import env from "../config/env.config";
 import { createRoleEntry } from "../utils/roleUtil";
 import { ApiError } from "../utils/ApiError";
 
-const registerUser = asyncHandler(async (req, res): Promise<void> => {
+const registerUser = asyncHandler(async (req, res) => {
   const parsedData = userSchema.safeParse(req.body);
 
   if (!parsedData.success) {
