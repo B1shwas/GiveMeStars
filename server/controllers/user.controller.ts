@@ -77,7 +77,6 @@ const registerUser = asyncHandler(async (req, res) => {
       },
     });
 
-    console.log(createdUser);
 
     if (!createdUser) {
       res.status(500).json({ message: "Something went wrong", success: false });
@@ -160,7 +159,6 @@ const loginUser = asyncHandler(async (req, res) => {
       });
     }
 
-    console.log("user", foundToken);
 
     if (!foundToken) {
       newRefreshTokenArray = [];
@@ -285,7 +283,7 @@ const refreshTheToken = asyncHandler(async (req, res): Promise<void> => {
 
 const logoutUser = asyncHandler(async (req, res): Promise<void> => {
   const token = req.cookies?.refreshtoken || req.body.refreshToken;
-  console.log(token);
+
 
   if (!token) {
     res.status(204).send();
@@ -300,7 +298,7 @@ const logoutUser = asyncHandler(async (req, res): Promise<void> => {
     },
   });
 
-  console.log(user);
+
 
   if (!user) {
     res.clearCookie("refreshtoken", {
@@ -316,7 +314,7 @@ const logoutUser = asyncHandler(async (req, res): Promise<void> => {
     (rt) => rt !== token
   );
 
-  console.log("updated", updatedRefreshTokenArray);
+
 
   const updated = await prisma.user.update({
     //@ts-ignore
@@ -324,7 +322,7 @@ const logoutUser = asyncHandler(async (req, res): Promise<void> => {
     data: { refreshToken: updatedRefreshTokenArray },
   });
 
-  console.log(updated);
+
 
   res
     .status(200)

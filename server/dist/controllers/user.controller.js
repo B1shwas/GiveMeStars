@@ -48,7 +48,7 @@ const registerUser = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         where: { id: newUser.id },
         select: { id: true, username: true, email: true, fullname: true },
     });
-    console.log(createdUser);
+
     if (!createdUser) {
         res.status(500).json({ message: "Something went wrong", success: false });
         return;
