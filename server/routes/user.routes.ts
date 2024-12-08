@@ -9,6 +9,6 @@ import {
 router.post("/register", registerUser);
 router.post("/login", loginUser);
 router.post("/logout", logoutUser);
-router.get("/refresh", refreshTheToken);
+router.post("/refresh", refreshTheToken);
 
 export default router;
