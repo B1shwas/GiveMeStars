@@ -6,8 +6,8 @@ import Link from "next/link";
 const Navbar = () => {
   console.log(navLinks);
   return (
-    <div className="w-[95%] h-20 bg-black flex items-center justify-between px-4 rounded-2xl m-auto mt-5 text-white sticky top-10">
-      <div className="flex items-center gap-2 p-2">
+    <div className="w-screen h-20 bg-black flex items-center justify-between text-white fixed">
+      <div className="flex items-center gap-2 p-2 m-2">
         {/* Logo Section */}
         <Image src={logo} alt="logo" height={50} width={50} />
         <p className="font-bold">Givemestars</p>
