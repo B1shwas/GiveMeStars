@@ -6,15 +6,15 @@ import { ApiError } from "../utils/ApiError";
 import { handleResponse } from "../utils/handleResponse";
 
 // Helper function to fetch student
-const fetchStudent = async (userId: string) => {
-  const student = await prisma.student.findUnique({ where: { userId } });
-  if (!student) throw new ApiError(404, "Student not found");
-  return student;
+const fetchReviewer = async (userId: string) => {
+  const reviewer = await prisma.user.findUnique({ where: { id: userId } });
+  if (!reviewer) throw new ApiError(404, "Student not found");
+  return reviewer;
 };
 
 // Helper function to fetch teacher
 const fetchTeacher = async (teacherId: string) => {
-  const teacher = await prisma.teacher.findUnique({ where: { id: teacherId } });
+  const teacher = await prisma.user.findUnique({ where: { id: teacherId } });
   if (!teacher) throw new ApiError(404, "Teacher not found");
   return teacher;
 };
@@ -38,7 +38,7 @@ const giveTeacherReviewAndRating = asyncHandler(
   async (req: CustomRequest, res: Response) => {
     const { teacherId } = req.params;
 
-    const student = await fetchStudent(req.user!.id);
+    const reviewer = await fetchReviewer(req.user!.id);
 
     const parsedData = reviewAndRatingSchema.safeParse(req.body);
 
@@ -53,115 +53,24 @@ const giveTeacherReviewAndRating = asyncHandler(
 
     const teacher = await fetchTeacher(teacherId);
 
-    // Check for existing feedback
-    const existingFeedback = await prisma.feedback.findUnique({
-      where: {
-        teacherId_studentId_userId: {
-          teacherId: teacherId,
-          studentId: student.id,
-          userId: req.user!.id,
-        },
+    // Create new feedback
+    const newFeedback = await prisma.feedback.create({
+      data: {
+        rating,
+        review,
+        receiverId: teacher.id,
+        giverId: reviewer.id,
       },
     });
 
-    if (existingFeedback) {
-      // Update existing feedback
-      const updatedFeedback = await prisma.feedback.update({
-        where: { id: existingFeedback.id },
-        data: {
-          rating,
-          review,
-        },
-      });
-      return handleResponse(
-        res,
-        updatedFeedback,
-        200,
-        "Feedback updated successfully"
-      );
-    } else {
-      // Create new feedback
-      const newFeedback = await prisma.feedback.create({
-        data: {
-          rating,
-          review,
-          teacherId,
-          studentId: student.id,
-          userId: req.user!.id,
-        },
-      });
-      return handleResponse(
-        res,
-        newFeedback,
-        201,
-        "Feedback created successfully"
-      );
-    }
+    return handleResponse(
+      res,
+      newFeedback,
+      201,
+      "Feedback created successfully"
+    );
   }
 );
-
-// const updateReviewAndRating = asyncHandler(
-//   async (req: CustomRequest, res: Response) => {
-//     const { feedbackId } = req.query;
-
-//     if (!feedbackId) {
-//       return res.status(400).json({
-//         message: "Feedback ID is required",
-//       });
-//     }
-
-//     const feedbackToBeUpdated = await prisma.feedback.findUnique({
-//       where: { id: feedbackId as string },
-//     });
-
-//     if (!feedbackToBeUpdated) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Feedback not found",
-//       });
-//     }
-
-//     const isAuthorized = feedbackToBeUpdated.userId === req.user!.id;
-
-//     if (!isAuthorized) {
-//       return res.status(403).json({
-//         success: false,
-//         message: "You are not authorized to update this feedback",
-//       });
-//     }
-
-//     const parsedData = reviewAndRatingSchema.safeParse(req.body);
-
-//     if (!parsedData.success) {
-//       return res.status(400).json({
-//         success: false,
-//         message: parsedData.error.flatten().fieldErrors,
-//       });
-//     }
-
-//     const { review: newReview, rating: newRating } = parsedData.data;
-
-//     try {
-//       await prisma.feedback.update({
-//         where: { id: feedbackId as string },
-//         data: {
-//           rating: newRating,
-//           review: newReview,
-//         },
-//       });
-//     } catch (error) {
-//       return res.status(500).json({
-//         message: error,
-//         success: false,
-//       });
-//     }
-
-//     return res.status(200).json({
-//       success: true,
-//       message: "Feedback updated successfully.",
-//     });
-//   }
-// );
 
 const deleteReviewAndRating = asyncHandler(
   async (req: CustomRequest, res: Response) => {
@@ -174,7 +83,7 @@ const deleteReviewAndRating = asyncHandler(
 
     const feedbackToBeDeleted = await validateFeedbackId(feedbackId as string);
 
-    checkAuthorization(userId, feedbackToBeDeleted.userId!);
+    checkAuthorization(userId, feedbackToBeDeleted.giverId);
 
     try {
       await prisma.feedback.delete({
@@ -213,12 +122,12 @@ const replyToFeedback = asyncHandler(
     const feedback = await validateFeedbackId(feedbackId);
 
     // Fetch the teacher based on userId
-    const teacher = await prisma.teacher.findUnique({
-      where: { userId },
+    const teacher = await prisma.user.findUnique({
+      where: { id: userId },
     });
 
     // Check if the teacher is authorized to reply to the feedback
-    checkAuthorization(feedback.teacherId!, teacher!.id);
+    checkAuthorization(feedback.receiverId!, teacher!.id);
 
     // Update the feedback with the reply
     await prisma.feedback.update({
@@ -241,13 +150,13 @@ const deleteReply = asyncHandler(async (req: CustomRequest, res: Response) => {
 
   const feedback = await validateFeedbackId(feedbackId as string);
 
-  const teacher = await prisma.teacher.findUnique({
+  const teacher = await prisma.user.findUnique({
     where: {
-      userId,
+      id: userId,
     },
   });
 
-  checkAuthorization(feedback.teacherId!, teacher!.id);
+  checkAuthorization(feedback.receiverId!, teacher!.id);
 
   try {
     await prisma.feedback.update({

@@ -3,17 +3,11 @@ import jwt from "jsonwebtoken";
 import env from "../config/env.config";
 import prisma from "../config/prisma.config";
 
-interface Role {
-  id: string;
-  name: string;
-  roleCode: string;
-}
-
 interface User {
   id: string;
   username: string;
   email: string | null; // Allowing email to be null
-  roles: Role[]; // Array of Role objects
+  roles: number[]; // Array of Role objects
 }
 
 interface CustomRequest extends Request {
@@ -36,6 +30,7 @@ const verifyJWT =
     }
 
     try {
+      // make it access token secret after frontend ui is done
       const decoded = jwt.verify(token, env.REFRESH_TOKEN_SECRET) as {
         id: string;
       };
@@ -44,14 +39,18 @@ const verifyJWT =
         select: { id: true, email: true, username: true, roles: true },
       });
 
+      console.log(user);
+
       if (!user) {
         res.status(401).json({ message: "Unauthorized" });
         return;
       }
 
-      const userRoles = user.roles.map((role) => role.name.toLowerCase());
+      const userRoles = user.roles.map((role) => role.toString());
+      console.log(userRoles);
+      console.log(allowedRoles);
       const hasPermission = allowedRoles
-        ? allowedRoles.some((role) => userRoles.includes(role.toLowerCase()))
+        ? allowedRoles.some((role) => userRoles.includes(role))
         : true;
 
       if (!hasPermission) {
