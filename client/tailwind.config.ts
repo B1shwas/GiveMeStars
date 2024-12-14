@@ -9,8 +9,24 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
+        primary: "#3577FA",
+        secondary: "#FFC007",
+        text: "#437FFB",
+        bg2: "#EEF3F7",
+        greyish: "#6C6C6D",
+        light: "#FFFFFF",
+        dark: "#222222",
+        bg: "#051d4d",
+      },
+      fontSize: {
+        main: "2.5rem",
+        sec: "2.25rem",
+        link: "0.875rem",
+        sub: "1.1875rem",
+        title: "2rem",
+        subtitle: "1.125rem",
+        small: "0.8125rem",
+        rating: "0.75rem",
       },
     },
   },
