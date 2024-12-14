@@ -1,16 +1,46 @@
+"use client";
 import Link from "next/link";
-import React from "react";
+import { Button } from "./ui/button";
+import { navLinks } from "@/lib/constant";
+import { useEffect, useState } from "react";
 
 const Navbar = () => {
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 0) {
+        setScrolled(true);
+      } else {
+        setScrolled(false);
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, [scrolled]);
   return (
-    <div className="py-5 px-7">
-      <h1>GIVEMESTARD</h1>
-      <div>
-        {["home", "about", "contact"].map((item, index) => (
-          <Link key={index} href={`/${item}`}>
-            {item}
-          </Link>
-        ))}
+    <div
+      className={`py-5 px-7 flex justify-between fixed top-0 w-full text-light transition-all ${
+        scrolled && "bg-white !text-black"
+      }`}
+    >
+      <h1 className="text-sub font-bold">GIVEMESTARS</h1>
+      <div className="text-link  hidden md:flex gap-6">
+        <div className="relative top-2">
+          {navLinks.map((item, index) => (
+            <Link
+              key={index}
+              href={item.path}
+              className="px-3 capitalize hover:text-prim"
+            >
+              {item.name}
+            </Link>
+          ))}
+        </div>
+        <Button className="!text-dark text-link bg-sec hover:bg-prim hover:text-light rounded-sm py-2 px-4">
+          Create a free account
+        </Button>
       </div>
     </div>
   );
