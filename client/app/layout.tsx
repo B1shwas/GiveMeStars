@@ -21,7 +21,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${HelveticaNeue.variable} antialiased font-helvetica`}
+        className={`${HelveticaNeue.variable} antialiased font-helvetica bg-bg2`}
         suppressHydrationWarning
       >
         {children}
