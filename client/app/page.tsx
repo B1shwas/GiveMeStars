@@ -1,4 +1,5 @@
 import Hero from "@/components/Hero";
+import LatestReviews from "@/components/LatestReviews";
 import Navbar from "@/components/Navbar";
 import TopSearched from "@/components/TopSearched";
 
@@ -8,7 +9,7 @@ export default function Home() {
       <Navbar />
       <Hero />
       <TopSearched />
-      <div className="bg-red-200 h-[200vw]">fwifjw</div>
+      <LatestReviews />
     </>
   );
 }

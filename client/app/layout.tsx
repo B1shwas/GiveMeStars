@@ -3,7 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 
 const HelveticaNeue = localFont({
-  src: "./fonts/HelveticaNeueMedium.otf",
+  src: "./fonts/Helvetica.ttf",
   variable: "--font-helvetica-neue",
   weight: "100 200 300 400 500 600 700 800 900",
 });

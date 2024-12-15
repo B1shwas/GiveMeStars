@@ -21,7 +21,7 @@ const Navbar = () => {
   }, [scrolled]);
   return (
     <div
-      className={`py-5 px-7 flex justify-between fixed top-0 w-full text-light transition-all ${
+      className={`py-5 px-7 flex justify-between fixed top-0 w-full text-light transition-all z-50 font-semibold ${
         scrolled && "bg-white !text-black"
       }`}
     >
@@ -38,7 +38,7 @@ const Navbar = () => {
             </Link>
           ))}
         </div>
-        <Button className="!text-dark text-link bg-sec hover:bg-prim hover:text-light rounded-sm py-2 px-4">
+        <Button className="!text-dark text-link bg-sec hover:bg-prim hover:!text-light rounded-sm py-2 px-4 font-semibold transition-colors duration-700">
           Create a free account
         </Button>
       </div>

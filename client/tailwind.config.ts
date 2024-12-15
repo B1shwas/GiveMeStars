@@ -73,6 +73,7 @@ export default {
         subtitle: "1.125rem",
         small: "0.8125rem",
         rating: "0.75rem",
+        topsearched: "1.375rem",
       },
       borderRadius: {
         lg: "var(--radius)",
