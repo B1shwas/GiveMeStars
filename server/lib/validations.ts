@@ -7,7 +7,14 @@ export const userSchema = z.object({
   password: z
     .string()
     .min(6, { message: "Password must be at least 6 characters" }),
-  roleCode: z.string().min(1, { message: "Role code is required" }),
+
+  role: z.enum(["1799", "0110", "9999", "1400", "0045", "0105"], {
+    message: "Invalid role code",
+  }),
+  pincode: z.number().min(6).max(6),
+  country: z.string().min(1),
+  state: z.string().min(1),
+  city: z.string().min(1),
 });
 
 export const envSchema = z.object({
@@ -23,6 +30,14 @@ export const envSchema = z.object({
 export const loginSchema = userSchema.pick({
   username: true,
   password: true,
+});
+
+export const registerSchema = userSchema.pick({
+  username: true,
+  email: true,
+  password: true,
+  fullname: true,
+  role: true,
 });
 
 export const reviewAndRatingSchema = z.object({

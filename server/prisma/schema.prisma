@@ -1,26 +1,5 @@
-// This is your Prisma schema file,
+// This is your Prisma schema file
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
   provider = "prisma-client-js"
@@ -31,104 +10,153 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Core user model
 model User {
-  id           String     @id @unique @default(uuid())
-  username     String     @unique
-  password     String
-  fullname     String
-  email        String?    @unique
-  created_at   DateTime   @default(now())
-  updated_at   DateTime   @updatedAt
-  students     Student[]  @relation("students")
-  teachers     Teacher[]  @relation("teachers")
-  refreshToken String[]
-  feedbacks    Feedback[] // Combined feedback (ratings and reviews)
-  roles        Role[]     @relation("User  Roles")
-  School       School[]
+  id         String   @id @unique @default(uuid())
+  username   String   @unique
+  password   String
+  fullname   String
+  email      String?  @unique
+  roles      Int[] // Array of role codes
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  @@index([username]) // Index for fast username lookups
-  @@index([email]) // Index for fast email lookups
-}
-
-model School {
-  id          String    @id @unique @default(uuid())
-  name        String
-  address     String
-  email       String    @unique
-  state       String
-  country     String
-  city        String
-  pincode     String
-  phone       String
-  passcode    String
-  description String?
-  created_at  DateTime  @default(now())
-  createdBy   String
-  creator     User      @relation(fields: [createdBy], references: [id])
-  students    Student[]
-  teachers    Teacher[] @relation("schoolTeachers")
-  admins      Teacher[] @relation("schoolAdmins")
-  moderators  Teacher[] @relation("schoolModerators")
-
-  @@index([name]) // Index for fast school name lookups
-}
-
-model Student {
-  id         String     @id @unique @default(uuid())
-  userId     String     @unique
-  schoolId   String?
-  grade      String?
-  created_at DateTime   @default(now())
-  user       User       @relation("students", fields: [userId], references: [id])
-  school     School?    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  feedbacks  Feedback[] // Combined feedback
-
-  @@index([userId]) // Index for fast userId lookups
-  @@index([schoolId]) // Index for fast schoolId lookups
-}
-
-model Role {
-  id       String @id @unique @default(uuid())
-  name     String @unique
-  roleCode String @unique
-  users    User[] @relation("User  Roles")
-
-  @@index([name]) // Index for fast role name lookups
-}
-
-model Teacher {
-  id        String     @id @unique @default(uuid())
-  userId    String     @unique
+  // Relations
+  contactId String?      @unique
+  contact   UserContact? @relation(fields: [contactId], references: [id])
   schoolId  String?
-  subject   String?
-  bio       String?
-  feedbacks Feedback[] // Combined feedback
-  user      User?      @relation("teachers", fields: [userId], references: [id], onDelete: Cascade)
 
-  // Unique map attributes for each relation
-  school          School? @relation("schoolTeachers", fields: [schoolId], references: [id], map: "teacher_school_relation")
-  adminSchool     School? @relation("schoolAdmins", fields: [schoolId], references: [id], map: "teacher_admin_school_relation")
-  moderatorSchool School? @relation("schoolModerators", fields: [schoolId], references: [id], map: "teacher_moderator_school_relation")
+  // Feedback system
+  feedbacks         Feedback[] // Feedbacks given
+  receivedFeedbacks Feedback[] @relation("receivedFeedbacks")
 
-  @@index([userId]) // Index for fast userId lookups
-  @@index([schoolId]) // Index for fast schoolId lookups
+  // Authentication
+  refreshTokens RefreshToken[]
+  schools       School[]       @relation("UserSchools")
+  createdSchool School[]       @relation("CreatedSchools")
+
+  @@index([username])
+  @@index([email])
 }
 
-model Feedback {
+// Location hierarchy
+model Country {
+  id     String  @id @unique @default(uuid())
+  name   String  @unique
+  code   String  @unique
+  states State[]
+}
+
+model State {
   id        String  @id @unique @default(uuid())
-  rating    Float? // Optional rating
-  review    String? // Optional review
-  reply     String?
-  teacherId String?
-  studentId String?
-  userId    String?
+  name      String
+  code      String
+  countryId String
+  country   Country @relation(fields: [countryId], references: [id])
+  cities    City[]
 
-  Teacher Teacher? @relation(fields: [teacherId], references: [id])
-  Student Student? @relation(fields: [studentId], references: [id])
-  User    User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([code, countryId])
+}
 
-  @@unique([teacherId, studentId, userId]) // Unique constraint to prevent duplicate feedback from the same user
-  @@index([teacherId]) // Index for fast teacherId lookups
-  @@index([studentId]) // Index for fast studentId lookups
-  @@index([userId]) // Index for fast userId lookups
+model City {
+  id       String    @id @unique @default(uuid())
+  name     String
+  stateId  String
+  state    State     @relation(fields: [stateId], references: [id])
+  pincodes Pincode[]
+
+  @@unique([name, stateId])
+}
+
+model Pincode {
+  id             String          @id @unique @default(uuid())
+  code           String
+  cityId         String
+  city           City            @relation(fields: [cityId], references: [id])
+  userContacts   UserContact[]
+  schoolContacts SchoolContact[]
+
+  @@unique([code, cityId])
+}
+
+// Contact information
+model UserContact {
+  id         String   @id @unique @default(uuid())
+  phone      String?
+  address    String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Location
+  pincodeId String?
+  pincode   Pincode? @relation(fields: [pincodeId], references: [id])
+
+  // Relation
+  user User?
+}
+
+// School information
+model School {
+  id          String   @id @unique @default(uuid())
+  name        String
+  description String?
+  created_at  DateTime @default(now())
+
+  // Relations
+  contactId String        @unique
+  contact   SchoolContact @relation(fields: [contactId], references: [id])
+  createdBy String
+  creator   User          @relation("CreatedSchools", fields: [createdBy], references: [id])
+  users     User[]        @relation("UserSchools")
+
+  @@index([name])
+}
+
+model SchoolContact {
+  id         String   @id @unique @default(uuid())
+  email      String   @unique
+  phone      String
+  address    String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Location
+  pincodeId String
+  pincode   Pincode @relation(fields: [pincodeId], references: [id])
+
+  // Relation
+  school School?
+}
+
+// Feedback system
+model Feedback {
+  id         String   @id @unique @default(uuid())
+  rating     Float?
+  review     String?
+  reply      String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Relations
+  giverId    String
+  giver      User   @relation(fields: [giverId], references: [id])
+  receiverId String
+  receiver   User   @relation("receivedFeedbacks", fields: [receiverId], references: [id])
+
+  @@unique([giverId, receiverId])
+  @@index([giverId])
+  @@index([receiverId])
+}
+
+// Authentication
+model RefreshToken {
+  id        String   @id @unique @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([userId])
+  @@index([token])
 }
