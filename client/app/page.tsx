@@ -1,5 +1,6 @@
 import Hero from "@/components/Hero";
 import LatestReviews from "@/components/LatestReviews";
+import LetsHelpYou from "@/components/LetsHelpYou";
 import Navbar from "@/components/Navbar";
 import TopSearched from "@/components/TopSearched";
 
@@ -10,6 +11,7 @@ export default function Home() {
       <Hero />
       <TopSearched />
       <LatestReviews />
+      <LetsHelpYou />
     </>
   );
 }
